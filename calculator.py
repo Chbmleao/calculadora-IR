@@ -23,8 +23,8 @@ def get_earnings(df):
 
   return earnings_per_product
 
-def get_goods_and_rights(df, earnings_per_product):
-  goods_and_rights = []
+def get_assets_and_rights(df, earnings_per_product):
+  assets_and_rights = []
   for index, row in df.iterrows():
     product = row["Código de Negociação"]
     if product.endswith("F"):
@@ -44,7 +44,7 @@ def get_goods_and_rights(df, earnings_per_product):
       earnings = round(earnings_per_product[product]["Rendimento"], REAL_DECIMAL_PLACES)
 
 
-    goods_and_rights.append({
+    assets_and_rights.append({
       "Grupo": get_product_group(product),
       "Código": get_product_code(product),
       "CNPJ": get_product_cnpj(product),
@@ -55,7 +55,7 @@ def get_goods_and_rights(df, earnings_per_product):
       "Rendimento": earnings,
     })
 
-  return goods_and_rights
+  return assets_and_rights
 
 def get_product_group(product):
   return "03 - Participações Societárias"
@@ -75,6 +75,6 @@ if __name__ == "__main__":
 
   earnings = get_earnings(earnings_df)
 
-  goods_and_rights = get_goods_and_rights(negotiation_df, earnings)
+  assets_and_rights = get_assets_and_rights(negotiation_df, earnings)
 
-  pd.DataFrame(goods_and_rights).to_excel("output/Bens_e_Direitos.xlsx", index=False)
+  pd.DataFrame(assets_and_rights).to_excel("output/Bens_e_Direitos.xlsx", index=False)
