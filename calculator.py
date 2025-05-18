@@ -1,6 +1,23 @@
 import pandas as pd
 
 REAL_DECIMAL_PLACES = 2
+PRODUCTS_INFO = {}
+
+def get_products_infos_map(df):
+  products_map = {}
+  for index, row in df.iterrows():
+    product = row["Ticker"]
+    type = row["Tipo"]
+    cnpj = row["CNPJ"]
+
+    products_map[product] = {
+      "Tipo": type,
+      "CNPJ": cnpj,
+      "Ticker": product,
+    }
+
+  return products_map
+
 
 def get_earnings(df):
   earnings_per_product = {}
@@ -43,8 +60,8 @@ def get_assets_and_rights(df, earnings_per_product):
       dividend = round(earnings_per_product[product]["Dividendo"], REAL_DECIMAL_PLACES)
       earnings = round(earnings_per_product[product]["Rendimento"], REAL_DECIMAL_PLACES)
 
-
     assets_and_rights.append({
+      "Produto": product,
       "Grupo": get_product_group(product),
       "Código": get_product_code(product),
       "CNPJ": get_product_cnpj(product),
@@ -64,17 +81,21 @@ def get_product_code(product):
   return "01 - Ações"
 
 def get_product_cnpj(product):
-  return "Em desenvolvimento..."
+  if (product not in PRODUCTS_INFO):
+    return "Não encontrado"
+  return PRODUCTS_INFO[product]["CNPJ"]
 
 def get_discrimination(product, institution, price_bought):
   return f"Compra de {product} na {institution} com custo médio de R$ {price_bought:.{REAL_DECIMAL_PLACES}f}"
 
 if __name__ == "__main__":
-  negotiation_df = pd.read_excel("input/negotiation.xlsx")
-  earnings_df = pd.read_excel("input/earnings.xlsx")
+  products_infos = pd.read_excel("data/b3_enterprises.xlsx")
+  PRODUCTS_INFO = get_products_infos_map(products_infos)
 
+  earnings_df = pd.read_excel("input/earnings.xlsx")
   earnings = get_earnings(earnings_df)
 
+  negotiation_df = pd.read_excel("input/negotiation.xlsx")
   assets_and_rights = get_assets_and_rights(negotiation_df, earnings)
 
   pd.DataFrame(assets_and_rights).to_excel("output/Bens_e_Direitos.xlsx", index=False)
