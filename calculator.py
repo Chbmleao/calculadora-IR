@@ -74,11 +74,27 @@ def get_assets_and_rights(df, earnings_per_product):
 
   return assets_and_rights
 
-def get_product_group(product):
-  return "03 - Participações Societárias"
+def get_product_group(ticker):
+  """
+  Retorna o grupo da declaração de IR com base no tipo do ativo.
+  """
+  if ticker.endswith("11"):
+    return "07 - Fundos"  
+  elif ticker.endswith("34"):
+    return "04 - Aplicações e Investimentos"  # BDRs
+  else:
+    return "03 - Participações Societárias"  # Ações
 
-def get_product_code(product):
-  return "01 - Ações"
+def get_product_code(ticker):
+  if ticker.endswith("11"):
+    if ticker in {"IVVB11", "SMAL11"}:
+      return "09 - Demais Fundos de Índice de Mercado (ETFs)"
+    else:
+      return "03 - Fundos de Investimento Imobiliário (FII)"
+  elif ticker.endswith("34"):
+    return "04 - Ativos negociados em Bolsa no Brasil (BDRs, opções e outros - exceto ações e fundos)"
+  else:
+    return "01 - Ações (inclusive as listadas em bolsa)"
 
 def get_product_cnpj(product):
   if (product not in PRODUCTS_INFO):
