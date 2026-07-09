@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     # How long a cached "latest" quote stays fresh (task 03).
     QUOTE_CACHE_TTL_MINUTES: int = 60
 
+    # Auto-update job (task 13): an in-process APScheduler runs the daily refresh +
+    # snapshot every JOB_INTERVAL_HOURS. Set RUN_SCHEDULER=0 to disable (e.g. drive
+    # POST /api/jobs/run-daily from an external cron instead).
+    RUN_SCHEDULER: bool = True
+    JOB_INTERVAL_HOURS: int = 12
+
     @property
     def cors_origins_list(self) -> list[str]:
         """CORS_ORIGINS parsed into a list (comma-separated in the env)."""

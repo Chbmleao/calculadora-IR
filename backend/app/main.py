@@ -17,16 +17,21 @@ from app.api import register_routers
 from app.api.common import register_exception_handlers
 from app.config import get_settings
 from app.db import init_db
+from app.jobs.scheduler import shutdown_scheduler, start_scheduler
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Startup: create the SQLite file + all tables.
+    # Startup: create the SQLite file + all tables, then start the auto-update
+    # scheduler (task 13) unless disabled via RUN_SCHEDULER=0 (e.g. external cron).
     init_db()
+    if settings.RUN_SCHEDULER:
+        start_scheduler(settings.JOB_INTERVAL_HOURS)
     yield
-    # Shutdown: nothing to tear down yet.
+    # Shutdown: stop the scheduler thread if we started one.
+    shutdown_scheduler()
 
 
 app = FastAPI(title="Investment Dashboard API", lifespan=lifespan)
