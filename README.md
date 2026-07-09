@@ -37,7 +37,7 @@ calculadora-IR/
 │   └── b3_enterprises.xlsx     # cadastro de empresas (versionado)
 ├── input/                      # arquivos de entrada (ignorados pelo git)
 │   ├── earnings.xlsx
-│   └── negotiation.xlsx
+│   └── negotiation_summary.xlsx
 └── output/                     # resultado (ignorado pelo git)
     └── Bens_e_Direitos.xlsx
 ```
@@ -66,13 +66,19 @@ Colunas usadas: `Tipo de Evento`, `Produto`, `Valor líquido`.
 
 Apenas eventos do tipo `Rendimento`, `Juros Sobre Capital Próprio` e `Dividendo` são considerados.
 
-### [input/negotiation.xlsx](input/negotiation.xlsx)
+### [input/negotiation_summary.xlsx](input/negotiation_summary.xlsx)
 
-Relatório consolidado de posição/negociação da B3, contendo a posição final do ano-base.
+Resumo de negociação da B3 (menu **Extrato → Negociação → aba Resumo**), exportado como Excel. Lê a aba `Negociação - Resumo`, que já traz uma linha por ativo com o preço médio de compra cumulativo.
+
+**Importante:** ao exportar, selecione o período **desde a primeira compra** até `31/12` do ano-base. Caso contrário, `Preço Médio (Compra)` representará apenas a média do período exportado, e não o custo de aquisição real.
+
+Após baixar, renomeie o arquivo para `negotiation_summary.xlsx` (a B3 nomeia com timestamp do tipo `negociacao-resumo-AAAA-MM-DD-HH-MM-SS.xlsx`).
 
 Colunas usadas: `Código de Negociação`, `Instituição`, `Quantidade (Líquida)`, `Preço Médio (Compra)`.
 
 Ativos com quantidade líquida ≤ 0 são ignorados. Tickers fracionários (terminados em `F`) são normalizados para o ticker padrão.
+
+> **Migração:** versões anteriores deste script usavam `input/negotiation.xlsx` (relatório de Posição). Esse arquivo, assim como o histórico bruto de transações (`negociacao-AAAA-...xlsx`), não é mais usado e pode ser apagado.
 
 ## Como executar
 

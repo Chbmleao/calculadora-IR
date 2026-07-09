@@ -111,7 +111,7 @@ if __name__ == "__main__":
   earnings_df = pd.read_excel("input/earnings.xlsx")
   earnings = get_earnings(earnings_df)
 
-  negotiation_df = pd.read_excel("input/negotiation.xlsx")
+  negotiation_df = pd.read_excel("input/negotiation_summary.xlsx", sheet_name="Negociação - Resumo")
   assets_and_rights = get_assets_and_rights(negotiation_df, earnings)
 
   pd.DataFrame(assets_and_rights).to_excel("output/Bens_e_Direitos.xlsx", index=False)
