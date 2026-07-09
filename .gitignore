@@ -2,3 +2,5 @@ input/*
 output/*
 .vscode/*
 .DS_Store
+data/cnpj_overrides.xlsx
+__pycache__/

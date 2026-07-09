@@ -19,34 +19,56 @@ A partir de três planilhas de entrada, o script:
 ## Pré-requisitos
 
 - Python 3.9+
-- [pandas](https://pandas.pydata.org/)
-- [openpyxl](https://openpyxl.readthedocs.io/) (necessário para o pandas ler/escrever `.xlsx`)
+- Dependências em [requirements.txt](requirements.txt) (`pandas`, `openpyxl`, `streamlit`).
 
 Instalação:
 
 ```bash
-pip install pandas openpyxl
+pip install -r requirements.txt
 ```
 
 ## Estrutura de pastas
 
 ```
 calculadora-IR/
-├── calculator.py
+├── app.py                      # webapp Streamlit
+├── calculator.py               # CLI (modo avançado)
+├── core.py                     # lógica compartilhada
 ├── data/
-│   └── b3_enterprises.xlsx     # cadastro de empresas (versionado)
-├── input/                      # arquivos de entrada (ignorados pelo git)
+│   ├── b3_enterprises.xlsx     # catálogo canônico (versionado)
+│   └── cnpj_overrides.xlsx     # CNPJs adicionados pelo usuário (ignorado pelo git, criado pelo app)
+├── input/                      # arquivos de entrada (ignorados pelo git, usados pelo CLI)
 │   ├── earnings.xlsx
 │   └── negotiation_summary.xlsx
-└── output/                     # resultado (ignorado pelo git)
+└── output/                     # resultado do CLI (ignorado pelo git)
     └── Bens_e_Direitos.xlsx
 ```
 
-Antes da primeira execução, crie as pastas `input/` e `output/`:
+## Modo web (recomendado)
+
+```bash
+streamlit run app.py
+```
+
+Abre em `http://localhost:8501`. Fluxo:
+
+1. Faça upload do **extrato de Proventos** e do **Resumo de Negociação** (ver "Arquivos de entrada" abaixo).
+2. Confira a prévia da ficha de Bens e Direitos.
+3. Se houver ativos com **"Não encontrado"** em CNPJ (típico para BDRs e ETFs, que não estão no catálogo canônico), preencha inline e clique em **Salvar no catálogo** — os CNPJs persistem em `data/cnpj_overrides.xlsx` (local, fora do git) e são reaproveitados nas próximas execuções.
+4. Clique em **Baixar Bens_e_Direitos.xlsx**.
+
+Os dados ficam só na sua máquina — o app não envia nada para fora.
+
+## Modo CLI (avançado)
+
+Antes da primeira execução, crie as pastas `input/` e `output/` e coloque os arquivos com os nomes esperados:
 
 ```bash
 mkdir -p input output
+python calculator.py
 ```
+
+O arquivo [output/Bens_e_Direitos.xlsx](output/Bens_e_Direitos.xlsx) será (re)criado. O CLI usa o mesmo catálogo do modo web (inclusive os overrides salvos pelo app).
 
 ## Arquivos de entrada
 
@@ -79,16 +101,6 @@ Colunas usadas: `Código de Negociação`, `Instituição`, `Quantidade (Líquid
 Ativos com quantidade líquida ≤ 0 são ignorados. Tickers fracionários (terminados em `F`) são normalizados para o ticker padrão.
 
 > **Migração:** versões anteriores deste script usavam `input/negotiation.xlsx` (relatório de Posição). Esse arquivo, assim como o histórico bruto de transações (`negociacao-AAAA-...xlsx`), não é mais usado e pode ser apagado.
-
-## Como executar
-
-A partir da raiz do projeto:
-
-```bash
-python calculator.py
-```
-
-O arquivo [output/Bens_e_Direitos.xlsx](output/Bens_e_Direitos.xlsx) será (re)criado com uma linha por ativo, pronto para conferência e lançamento manual no programa da Receita Federal.
 
 ## Regras de classificação
 
