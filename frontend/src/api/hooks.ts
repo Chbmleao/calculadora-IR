@@ -1,17 +1,37 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiGet, apiPost, apiPut, apiUpload } from "./client";
+import {
+  apiDelete,
+  apiDownload,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+  apiUpload,
+} from "./client";
 import type {
   AccountingView,
-  CnpjOverride,
+  ClearSupersededResponse,
+  CnpjOverrideIn,
+  CnpjOverrideResult,
   EvolutionView,
   HealthResponse,
-  ImportResult,
+  ImportKind,
   ImportStatus,
+  ImportSummary,
+  JobsStatus,
+  LatestQuotes,
   PortfolioView,
   RebalanceView,
   RefreshResult,
-  TargetAllocation,
+  RunDailyResult,
+  TargetsResponse,
+  TargetsUpdate,
+  Trade,
+  TradeInput,
+  TradeListResponse,
+  TradeOrigin,
+  TradeUpdate,
 } from "./types";
 
 /** Central registry of React Query keys so hooks and invalidations stay in sync. */
@@ -19,10 +39,14 @@ export const queryKeys = {
   health: ["health"] as const,
   positions: ["positions"] as const,
   evolution: ["evolution"] as const,
-  rebalance: ["rebalance"] as const,
+  rebalance: (contribution?: number) =>
+    ["rebalance", contribution ?? 0] as const,
   targets: ["targets"] as const,
-  accounting: (year?: number) => ["accounting", year ?? null] as const,
-  importStatus: ["import", "status"] as const,
+  accounting: ["accounting", "bens-e-direitos"] as const,
+  importStatus: ["imports", "status"] as const,
+  latestQuotes: ["quotes", "latest"] as const,
+  trades: (origin?: TradeOrigin) => ["trades", origin ?? "manual"] as const,
+  jobsStatus: ["jobs", "status"] as const,
 };
 
 /* ── Queries ─────────────────────────────────────────────────────────────── */
@@ -35,7 +59,7 @@ export function useHealth() {
   });
 }
 
-/** `GET /api/portfolio/positions` — holdings + allocation (task 04). */
+/** `GET /api/portfolio/positions` — holdings + allocation. */
 export function usePositions() {
   return useQuery({
     queryKey: queryKeys.positions,
@@ -43,7 +67,7 @@ export function usePositions() {
   });
 }
 
-/** `GET /api/portfolio/evolution` — patrimony curve + rentability (task 05). */
+/** `GET /api/portfolio/evolution` — equity curve + return metrics. */
 export function useEvolution() {
   return useQuery({
     queryKey: queryKeys.evolution,
@@ -51,39 +75,79 @@ export function useEvolution() {
   });
 }
 
-/** `GET /api/portfolio/rebalance` — current vs. target + buy suggestions (task 06). */
-export function useRebalance() {
+/** `GET /api/portfolio/rebalance?contribution=` — current vs. target + buys. */
+export function useRebalance(contribution?: number) {
   return useQuery({
-    queryKey: queryKeys.rebalance,
-    queryFn: () => apiGet<RebalanceView>("/api/portfolio/rebalance"),
-  });
-}
-
-/** `GET /api/portfolio/targets` — saved target allocations (task 06). */
-export function useTargets() {
-  return useQuery({
-    queryKey: queryKeys.targets,
-    queryFn: () => apiGet<TargetAllocation[]>("/api/portfolio/targets"),
-  });
-}
-
-/** `GET /api/accounting/bens-direitos` — DIRPF rows for a year (task 07). */
-export function useAccounting(year?: number) {
-  return useQuery({
-    queryKey: queryKeys.accounting(year),
+    queryKey: queryKeys.rebalance(contribution),
     queryFn: () =>
-      apiGet<AccountingView>(
-        "/api/accounting/bens-direitos",
-        year != null ? { year } : undefined,
+      apiGet<RebalanceView>(
+        "/api/portfolio/rebalance",
+        contribution != null ? { contribution } : undefined,
       ),
   });
 }
 
-/** `GET /api/import/status` — what has been imported so far (task 02). */
+/** `GET /api/targets` — saved targets grouped by kind. */
+export function useTargets() {
+  return useQuery({
+    queryKey: queryKeys.targets,
+    queryFn: () => apiGet<TargetsResponse>("/api/targets"),
+  });
+}
+
+/** `GET /api/accounting/bens-e-direitos` — DIRPF preview rows. */
+export function useAccounting() {
+  return useQuery({
+    queryKey: queryKeys.accounting,
+    queryFn: () =>
+      apiGet<AccountingView>("/api/accounting/bens-e-direitos"),
+  });
+}
+
+/**
+ * Non-hook helper: download the Bens e Direitos sheet as `.xlsx`
+ * (`GET /api/accounting/bens-e-direitos.xlsx`).
+ */
+export function downloadAccountingXlsx(): Promise<void> {
+  return apiDownload(
+    "/api/accounting/bens-e-direitos.xlsx",
+    "bens-e-direitos.xlsx",
+  );
+}
+
+/** `GET /api/imports/status` — what has been imported so far. */
 export function useImportStatus() {
   return useQuery({
     queryKey: queryKeys.importStatus,
-    queryFn: () => apiGet<ImportStatus>("/api/import/status"),
+    queryFn: () => apiGet<ImportStatus>("/api/imports/status"),
+  });
+}
+
+/** `GET /api/quotes/latest` — a `{ ticker: LatestQuote }` map. */
+export function useLatestQuotes() {
+  return useQuery({
+    queryKey: queryKeys.latestQuotes,
+    queryFn: () => apiGet<LatestQuotes>("/api/quotes/latest"),
+  });
+}
+
+/** `GET /api/trades?origin=` — trades newest-first (default `manual`). */
+export function useTrades(origin?: TradeOrigin) {
+  return useQuery({
+    queryKey: queryKeys.trades(origin),
+    queryFn: () =>
+      apiGet<TradeListResponse>(
+        "/api/trades",
+        origin != null ? { origin } : undefined,
+      ),
+  });
+}
+
+/** `GET /api/jobs/status` — data-freshness header payload. */
+export function useJobsStatus() {
+  return useQuery({
+    queryKey: queryKeys.jobsStatus,
+    queryFn: () => apiGet<JobsStatus>("/api/jobs/status"),
   });
 }
 
@@ -97,45 +161,123 @@ export function useRefreshQuotes() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.positions });
       void qc.invalidateQueries({ queryKey: queryKeys.evolution });
-      void qc.invalidateQueries({ queryKey: queryKeys.rebalance });
+      void qc.invalidateQueries({ queryKey: ["rebalance"] });
+      void qc.invalidateQueries({ queryKey: queryKeys.latestQuotes });
     },
   });
 }
 
-/** `POST /api/import` — upload a B3 Excel export (task 02). */
+/** `POST /api/import/{kind}` — upload a B3 Excel export (multipart `file`). */
 export function useImportFile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => apiUpload<ImportResult>("/api/import", file),
+    mutationFn: ({ kind, file }: { kind: ImportKind; file: File }) =>
+      apiUpload<ImportSummary>(`/api/import/${kind}`, file),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.importStatus });
+      void qc.invalidateQueries({ queryKey: queryKeys.positions });
+      void qc.invalidateQueries({ queryKey: queryKeys.evolution });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+    },
+  });
+}
+
+/** `PUT /api/targets` — replace all stored targets. */
+export function useSaveTargets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (targets: TargetsUpdate) =>
+      apiPut<TargetsResponse>("/api/targets", targets),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.targets });
+      void qc.invalidateQueries({ queryKey: ["rebalance"] });
+    },
+  });
+}
+
+/** `POST /api/accounting/cnpj-overrides` — persist ticker→CNPJ overrides. */
+export function useSaveCnpj() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: CnpjOverrideIn[]) =>
+      apiPost<CnpjOverrideResult>("/api/accounting/cnpj-overrides", rows),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.accounting });
+    },
+  });
+}
+
+/** `POST /api/trades` — create a manual trade. */
+export function useAddTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (trade: TradeInput) => apiPost<Trade>("/api/trades", trade),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: queryKeys.positions });
       void qc.invalidateQueries({ queryKey: queryKeys.evolution });
     },
   });
 }
 
-/** `PUT /api/portfolio/targets` — save target allocations (task 06). */
-export function useSaveTargets() {
+/** `PATCH /api/trades/{trade_id}` — edit a manual trade. */
+export function useEditTrade() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (targets: TargetAllocation[]) =>
-      apiPut<TargetAllocation[]>("/api/portfolio/targets", targets),
+    mutationFn: ({
+      tradeId,
+      update,
+    }: {
+      tradeId: number;
+      update: TradeUpdate;
+    }) => apiPatch<Trade>(`/api/trades/${tradeId}`, update),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.targets });
-      void qc.invalidateQueries({ queryKey: queryKeys.rebalance });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: queryKeys.positions });
+      void qc.invalidateQueries({ queryKey: queryKeys.evolution });
     },
   });
 }
 
-/** `PUT /api/accounting/cnpj` — override a ticker→CNPJ mapping (task 07/12). */
-export function useSaveCnpj() {
+/** `DELETE /api/trades/{trade_id}` — delete a manual trade. */
+export function useDeleteTrade() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (override: CnpjOverride) =>
-      apiPut<CnpjOverride>("/api/accounting/cnpj", override),
+    mutationFn: (tradeId: number) =>
+      apiDelete<void>(`/api/trades/${tradeId}`),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["accounting"] });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: queryKeys.positions });
+      void qc.invalidateQueries({ queryKey: queryKeys.evolution });
+    },
+  });
+}
+
+/** `POST /api/trades/clear-superseded` — drop manual trades now covered by a re-import. */
+export function useClearSuperseded() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiPost<ClearSupersededResponse>("/api/trades/clear-superseded"),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: queryKeys.positions });
+      void qc.invalidateQueries({ queryKey: queryKeys.evolution });
+    },
+  });
+}
+
+/** `POST /api/jobs/run-daily` — trigger the daily quote refresh + snapshot. */
+export function useRunDaily() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiPost<RunDailyResult>("/api/jobs/run-daily"),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.positions });
+      void qc.invalidateQueries({ queryKey: queryKeys.evolution });
+      void qc.invalidateQueries({ queryKey: ["rebalance"] });
+      void qc.invalidateQueries({ queryKey: queryKeys.latestQuotes });
+      void qc.invalidateQueries({ queryKey: queryKeys.jobsStatus });
     },
   });
 }

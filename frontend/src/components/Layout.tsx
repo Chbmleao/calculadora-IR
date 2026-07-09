@@ -32,7 +32,7 @@ export function Layout() {
   const handleRefresh = () => {
     refresh.mutate(undefined, {
       onSuccess: (result) =>
-        notify(result.message || `Refreshed ${result.updated} quotes`, "success"),
+        notify(`Refreshed ${result.updated} quotes`, "success"),
     });
   };
 

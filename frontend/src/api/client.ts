@@ -66,7 +66,20 @@ export async function apiPut<T>(url: string, body?: unknown): Promise<T> {
   return data;
 }
 
-/** Multipart upload helper for Excel imports (task 02). */
+export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
+  const { data } = await api.patch<T>(url, body);
+  return data;
+}
+
+export async function apiDelete<T = void>(url: string): Promise<T> {
+  const { data } = await api.delete<T>(url);
+  return data;
+}
+
+/**
+ * Multipart upload helper for Excel imports. POSTs `file` under field name
+ * `file` to `/api/import/{kind}`.
+ */
 export async function apiUpload<T>(
   url: string,
   file: File,
@@ -76,4 +89,21 @@ export async function apiUpload<T>(
   form.append(fieldName, file);
   const { data } = await api.post<T>(url, form);
   return data;
+}
+
+/**
+ * Fetch a streamed file (e.g. the Bens e Direitos `.xlsx`) as a Blob and
+ * trigger a browser download. Runs through the shared axios instance so the
+ * base URL and error handling stay consistent.
+ */
+export async function apiDownload(url: string, filename: string): Promise<void> {
+  const { data } = await api.get<Blob>(url, { responseType: "blob" });
+  const href = URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(href);
 }
