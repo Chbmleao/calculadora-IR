@@ -4,3 +4,15 @@ output/*
 .DS_Store
 data/cnpj_overrides.xlsx
 __pycache__/
+
+# backend (FastAPI dashboard)
+backend/data/*.db
+backend/.venv/
+*.pyc
+
+# frontend (React dashboard)
+frontend/node_modules/
+frontend/dist/
+
+# env
+.env
